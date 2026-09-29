@@ -113,6 +113,9 @@ Return a property with name `:prop` from the current `model`, assuming the model
 are either a dictionary with key type `Symbol` or a Julia struct.
 For example, if a model has the set of properties `Dict(:weight => 5, :current => false)`,
 retrieving these values can be obtained via `model.weight` or `model.current`.
+
+See also `propertynames` and `hasproperty`, which are extended for `ABM`
+so that tab-completion in the REPL lists these properties.
 """
 function Base.getproperty(m::ABM, s::Symbol)
     p = abmproperties(m)
@@ -136,6 +139,46 @@ function Base.setproperty!(m::ABM, s::Symbol, x)
     else
         s = lazy"Cannot set property $(s) for model $(nameof(typeof(m))) with properties container type $(typeof(properties))."
         throw(ErrorException(s))
+    end
+end
+
+# Property names of the user-facing `properties` container (Dict keys or struct fields).
+function _abm_properties_names(p, private::Bool = false)
+    if isnothing(p)
+        return ()
+    elseif p isa AbstractDict
+        return Tuple(keys(p))
+    else
+        names = propertynames(p, private)
+        return names isa Tuple ? names : Tuple(names)
+    end
+end
+
+"""
+    propertynames(model::ABM) → names
+
+Return the names of the user-facing model properties accessible via `model.name`.
+This enables REPL tab-completion for `model.<TAB>`. Internal ABM fields are not listed;
+use accessors such as [`abmspace`](@ref), [`abmrng`](@ref), etc. instead.
+"""
+function Base.propertynames(m::ABM, private::Bool = false)
+    return _abm_properties_names(abmproperties(m), private)
+end
+
+"""
+    hasproperty(model::ABM, :prop) → true/false
+
+Return `true` if `model.prop` is a valid user-facing property
+(a key of a `Dict` properties container, or a field of a struct properties container).
+"""
+function Base.hasproperty(m::ABM, s::Symbol)
+    p = abmproperties(m)
+    if isnothing(p)
+        return false
+    elseif p isa AbstractDict
+        return haskey(p, s)
+    else
+        return hasproperty(p, s)
     end
 end
 
