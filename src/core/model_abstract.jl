@@ -41,6 +41,8 @@ see [the corresponding entry in the developer documentation](@ref make_new_model
 - `model.property`:  If the model `properties` is a dictionary with
   key type `Symbol`, or if it is a composite type (`struct`), then the syntax
   `model.property` will return the model property with key `:property`.
+  REPL tab-completion after `model.` lists these properties
+  (not the internal fields of the model container).
 - `abmtime(model)` will return the current time of the model. All models start from time 0
   and time is incremented as the model is [`step!`](@ref)-ped.
 - `abmrng(model)` will return the random number generator of the model.
@@ -113,9 +115,7 @@ Return a property with name `:prop` from the current `model`, assuming the model
 are either a dictionary with key type `Symbol` or a Julia struct.
 For example, if a model has the set of properties `Dict(:weight => 5, :current => false)`,
 retrieving these values can be obtained via `model.weight` or `model.current`.
-
-See also `propertynames` and `hasproperty`, which are extended for `ABM`
-so that tab-completion in the REPL lists these properties.
+REPL tab-completion after `model.` lists these properties.
 """
 function Base.getproperty(m::ABM, s::Symbol)
     p = abmproperties(m)
