@@ -226,6 +226,16 @@ function _agent(struct_repr)
             $(new_type)(m::ABM; kwargs...) where {$(new_params...)} =
                 $(new_type)(; id = Agents.nextid(m), kwargs...)
         end
+        # Pretty printing: one field per line with name, type, and value (#965)
+        function Base.show(io::IO, ::MIME"text/plain", a::$(new_type_no_params))
+            print(io, typeof(a))
+            for name in fieldnames(typeof(a))
+                println(io)
+                print(io, "  ", name, "::", fieldtype(typeof(a), name), " = ")
+                show(io, getfield(a, name))
+            end
+            return
+        end
     end
     return expr
 end

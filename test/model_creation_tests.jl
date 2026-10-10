@@ -94,6 +94,18 @@ using Test, Agents, Random
     @test MyFoo{2} <: AbstractFoo{2}
     @test !(MyFoo{2} <: AbstractFoo{3})
     @test fieldtypes(MyFoo{2}) == (Int64, SVector{2, Float64}, SVector{2, Float64})
+
+    # Pretty printing from `@agent` (#965)
+    @agent struct PrettyPrintAgent(GridAgent{2})
+        mood::Bool
+        group::Int
+    end
+    pretty_agent = PrettyPrintAgent(1, (1, 1), true, 1)
+    pretty = sprint(show, MIME"text/plain"(), pretty_agent)
+    @test occursin("PrettyPrintAgent", pretty)
+    @test occursin("id::", pretty)
+    @test occursin("mood::Bool = true", pretty)
+    @test occursin("group::Int", pretty)
 end
 
 @testset "Model construction" begin
