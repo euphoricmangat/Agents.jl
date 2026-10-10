@@ -51,6 +51,15 @@
 
         @test ids[sortperm(properties)] == a
 
+        # by condition
+        model = StandardABM(Agent2; scheduler = Schedulers.ByCondition(a -> a.weight > 0.5), warn_deprecation = false)
+        for i in 1:N
+            add_agent!(model, i / N)
+        end
+        scheduled = collect(abmscheduler(model)(model))
+        @test all(model[id].weight > 0.5 for id in scheduled)
+        @test length(scheduled) == count(a -> a.weight > 0.5, allagents(model))
+
         # Mixed model
         function init_mixed_model2(choices = [3, 3, 3, 3]; scheduler = Schedulers.fastest)
             model = StandardABM(Union{Agent0, Agent1, Agent2, Agent3}, scheduler = scheduler, warn = false, warn_deprecation = false)

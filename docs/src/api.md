@@ -335,6 +335,7 @@ Schedulers.Randomly
 Schedulers.Partially
 Schedulers.ByProperty
 Schedulers.ByType
+Schedulers.ByCondition
 ```
 
 ### [Advanced scheduling](@id advanced_scheduling)

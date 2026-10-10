@@ -38,7 +38,7 @@ module Schedulers
     using Agents
     using Random: shuffle!, randsubseq, randsubseq!
 
-    export fastest, Randomly, ByID, Partially, ByProperty, ByType
+    export fastest, Randomly, ByID, Partially, ByProperty, ByType, ByCondition
 
     ####################################
     # Schedulers
@@ -148,6 +148,32 @@ module Schedulers
 
         sortperm!(sched.perm, properties; initialized)
         return Iterators.map(i -> sched.ids[i], sched.perm)
+    end
+
+    """
+        Schedulers.ByCondition(f)
+
+    A scheduler that activates only agents for which `f(agent)` is `true`.
+    The order of the returned IDs follows the agent container
+    (same as [`Schedulers.fastest`](@ref)). This is useful when only a subset of agents
+    should act each step, e.g. only burning trees in a forest-fire model.
+
+    Filtering is done each time the scheduler is called. For more advanced / incremental
+    filtering strategies, write a custom scheduler; see [Advanced scheduling](@ref advanced_scheduling).
+    """
+    struct ByCondition{F}
+        f::F
+        ids::Vector{Int}
+    end
+
+    ByCondition(f::F) where {F} = ByCondition{F}(f, Int[])
+
+    function (sched::ByCondition)(model::ABM)
+        empty!(sched.ids)
+        for agent in allagents(model)
+            sched.f(agent) && push!(sched.ids, getid(agent))
+        end
+        return sched.ids
     end
 
     """
