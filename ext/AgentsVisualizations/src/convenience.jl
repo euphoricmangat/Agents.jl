@@ -52,7 +52,7 @@ function init_abm_data_plots!(fig, abmobs, adata, mdata, alabels, mlabels, plotk
     end
 
     for i in 1:Lm # add mdata plots
-        y_label = string(mdata[i])
+        y_label = dataname(mdata[i])
         points = @lift(
             Point2f.(
                 apply_offsets($(abmobs.mdf).time, $(abmobs.offset_time_mdf)),
