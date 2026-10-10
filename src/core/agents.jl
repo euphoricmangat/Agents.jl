@@ -2,6 +2,17 @@ export AbstractAgent, @agent, @multiagent, NoSpaceAgent, constructor
 
 ###########################################################################################
 # @agent
+#
+# Pipeline overview:
+#   `@agent` → `_agent` → `decompose_struct_base` (parse child + parent + fields)
+#                        → `compute_base_fields` (resolve inherited fields via
+#                           `__AGENT_GENERATOR__`, substituting type parameters)
+#                        → emit `@kwdef` struct + ABM-aware constructors
+#
+# `__AGENT_GENERATOR__` stores a stripped `mutable struct` Expr for each agent
+# type (keyed by the non-parametric name) so later `@agent` definitions can
+# inherit fields. MacroTools `@capture` / `prewalk`/`postwalk` handle parametric
+# parent types such as `GridAgent{2}`.
 ###########################################################################################
 """
     YourAgentType <: AbstractAgent
@@ -202,6 +213,7 @@ macro agent(struct_repr)
 end
 
 function _agent(struct_repr)
+    # Parse `struct Child(Parent) [<: Super] ... end` and inherit Parent fields.
     new_type, base_type_spec, abstract_type, new_fields = decompose_struct_base(struct_repr)
     base_fields = compute_base_fields(base_type_spec)
     expr_new_type = :(
@@ -211,11 +223,14 @@ function _agent(struct_repr)
         end
     )
     new_type_no_params = namify(new_type)
+    # Keep a canonical definition so future `@agent` calls can inherit from this type.
     __AGENT_GENERATOR__[new_type_no_params] = MacroTools.prewalk(rmlines, expr_new_type)
+    # `@capture(... _{new_params__})` extracts type parameters if `new_type` is parametric.
     @capture(new_type, _{new_params__})
     new_params === nothing && (new_params = [])
     expr = quote
         @kwdef $expr_new_type
+        # Convenience constructors that take an ABM and auto-assign `id`.
         $(new_type_no_params)(m::ABM, args...) =
             $(new_type_no_params)(Agents.nextid(m), args...)
         $(new_type_no_params)(m::ABM; kwargs...) =
@@ -262,6 +277,8 @@ function decompose_struct(struct_repr)
 end
 
 function compute_base_fields(base_type_spec)
+    # Look up the stored parent struct Expr and rewrite its type parameters to
+    # match this inheritance site (e.g. `GridAgent{D}` → `GridAgent{2}`).
     base_agent = __AGENT_GENERATOR__[namify(base_type_spec)]
     @capture(
         base_agent, mutable struct base_type_general_ <: _
