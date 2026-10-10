@@ -14,7 +14,9 @@ fields should be supplied. See the top of src/core/agents.jl for examples.
 export move_agent!,
     add_agent!,
     add_agent_own_pos!,
+    add_agent_to_space!,
     remove_agent!,
+    remove_agent_from_space!,
     remove_all!,
     random_position,
     nearby_positions,
@@ -38,16 +40,25 @@ random_position(model) = notimplemented(model)
     add_agent_to_space!(agent, model)
 
 Add the agent to the underlying space structure at the agent's own position.
-This function is called after the agent is already inserted into the model dictionary
-and `maxid` has been updated. This function is NOT part of the public API.
+This function is called internally by [`add_agent!`](@ref) / [`move_agent!`](@ref)
+after the agent is already present in the model container; typical users do not
+need to call it when using those functions.
+
+It is part of the public API for advanced workflows where an agent should remain
+in the model but (re)enter the space independently of [`add_agent!`](@ref).
+Custom spaces must implement this method.
 """
 add_agent_to_space!(agent, model) = notimplemented(model)
 
 """
     remove_agent_from_space!(agent, model)
-Remove the agent from the underlying space structure.
-This function is called after the agent is already removed from the model container.
-This function is NOT part of the public API.
+
+Remove the agent from the underlying space structure while leaving it in the
+model container. This function is called internally by [`remove_agent!`](@ref)
+and [`move_agent!`](@ref); typical users do not need to call it when using those.
+
+It is part of the public API for advanced workflows (e.g. temporarily taking an
+agent out of space without deleting it). Custom spaces must implement this method.
 """
 remove_agent_from_space!(agent, model) = notimplemented(model)
 

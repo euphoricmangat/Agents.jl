@@ -490,4 +490,16 @@ using StableRNGs
 
 end
 
+@testset "public add/remove_agent_from_space! (#1154)" begin
+    model = StandardABM(GridAgent{2}, GridSpace((5, 5)); warn_deprecation = false)
+    a = add_agent!((2, 2), model)
+    @test hasid(model, a)
+    @test a.id in collect(ids_in_position((2, 2), model))
+    remove_agent_from_space!(a, model)
+    @test hasid(model, a) # still in model
+    @test isempty(collect(ids_in_position((2, 2), model)))
+    add_agent_to_space!(a, model)
+    @test a.id in collect(ids_in_position((2, 2), model))
+end
+
 # TODO: Test nearby_ids(r = Tuple)
