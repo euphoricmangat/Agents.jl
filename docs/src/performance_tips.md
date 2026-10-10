@@ -60,6 +60,29 @@ Julia provides several tools for [parallelization and distributed computing](htt
 Notice that we cannot help you with parallelizing the _actual model evolution_ via the agent- and model-stepping functions. This is something you must do manually, as depending on the model, parallelization might not be possible at all due to e.g. the access and overwrite of the same memory location (writing on same agent in different threads or killing/creating agents).
 If your model evolution satisfies the [criteria allowing parallelism](https://docs.julialang.org/en/v1/manual/multi-threading/#Caveats), the simplest way to do it is using Julia's [`@threads` or `@spawn` macros](https://docs.julialang.org/en/v1/manual/multi-threading/#man-multithreading).
 
+### Thread-safety tips for agent containers
+
+The default agent container is a `Dict{Int, AgentType}`. Concurrent mutation of a
+standard `Dict` from multiple threads is **not** safe and can raise errors such as
+`UndefRefError` or corrupt the dictionary. Practical patterns used by Agents.jl users:
+
+1. **Read-only parallel pass, serial write.** Parallelize over agents only when each
+   thread only *reads* agent state (or writes to thread-local buffers). Apply mutations
+   to the model in a second, single-threaded pass.
+2. **Mark-and-sweep removals.** Instead of calling [`remove_agent!`](@ref) from many
+   threads, set a `:dead` (or similar) field on agents in parallel, then remove all
+   marked agents once in a serial `model_step!`.
+3. **Locks around the container.** Protect every `add_agent!` / `remove_agent!` /
+   container write with a `ReentrantLock` (or finer-grained locks per region of the
+   space). Prefer coarse locking unless you have profiled a need for more.
+4. **Thread-safe dictionaries.** You may pass a custom agent container that implements
+   `AbstractDict` / `AbstractVector` and is safe for concurrent access (for example a
+   lock-wrapped dict). Agents.jl dispatches on these abstract container interfaces in
+   several places; validate thoroughly with your Julia version and workload.
+
+Prefer [`ensemblerun!`](@ref) / [`paramscan`](@ref) with `parallel = true` when you need
+many independent replicates, rather than multi-threading a single model step, whenever
+that matches your scientific question.
 
 ## Use Type-stable containers for the model properties
 This tip is actually not related to Agents.jl and you will also read about it in Julia's [abstract container tips](https://docs.julialang.org/en/v1/manual/performance-tips/#man-performance-abstract-container). In general, avoid containers whose values are of unknown type. E.g.:
