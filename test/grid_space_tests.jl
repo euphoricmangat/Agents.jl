@@ -490,4 +490,26 @@ using StableRNGs
 
 end
 
+@testset "per-dimension radius r::NTuple (#1053)" begin
+    space = GridSpace((20, 20); periodic = true, metric = :chebyshev)
+    model = StandardABM(GridAgent{2}, space; warn_deprecation = false)
+    for _ in 1:5
+        add_agent_single!(model)
+    end
+    a = model[1]
+    # Must not MethodError on periodic spaces / per-dimension radii
+    pos = collect(nearby_positions(a, model, (1, 3)))
+    ids = collect(nearby_ids(a, model, (1, 3)))
+    @test !isempty(pos)
+    @test all(p -> p isa NTuple{2, Int}, pos)
+    @test a.pos ∉ pos
+    @test all(id -> id isa Int, ids)
+
+    space2 = GridSpace((20, 20); periodic = false, metric = :chebyshev)
+    model2 = StandardABM(GridAgent{2}, space2; warn_deprecation = false)
+    add_agent!((10, 10), model2)
+    @test !isempty(collect(nearby_positions((10, 10), model2, (1, 2))))
+    @test !isempty(collect(nearby_ids((10, 10), model2, (1, 2))))
+end
+
 # TODO: Test nearby_ids(r = Tuple)

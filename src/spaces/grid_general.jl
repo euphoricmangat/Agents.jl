@@ -185,6 +185,33 @@ end
 function nearby_positions(pos::GridPos{D}, model::ABM{<:AbstractGridSpace{D}}, args::Vararg{Any, N}) where {D, N}
     return nearby_positions(pos, abmspace(model), args...)
 end
+
+# Per-dimension radii (Chebyshev box); excludes the origin position (#1053).
+# Specialized on periodicity to avoid ambiguity with methods that take untyped `r`.
+function nearby_positions(pos::GridPos{D}, model::ABM{<:AbstractGridSpace{D}}, r::NTuple{D, Int}) where {D}
+    return _nearby_positions_tuple_r(pos, abmspace(model), r)
+end
+function nearby_positions(pos::GridPos{D}, space::AbstractGridSpace{D, true}, r::NTuple{D, Int}) where {D}
+    return _nearby_positions_tuple_r(pos, space, r)
+end
+function nearby_positions(pos::GridPos{D}, space::AbstractGridSpace{D, false}, r::NTuple{D, Int}) where {D}
+    return _nearby_positions_tuple_r(pos, space, r)
+end
+function nearby_positions(pos::GridPos{D}, space::AbstractGridSpace{D, P}, r::NTuple{D, Int}) where {D, P}
+    return _nearby_positions_tuple_r(pos, space, r)
+end
+function _nearby_positions_tuple_r(pos::GridPos{D}, space::AbstractGridSpace{D, P}, r::NTuple{D, Int}) where {D, P}
+    space_size = spacesize(space)
+    periodic_d = ntuple(d -> P isa Bool ? P : P[d], D)
+    offsets = Iterators.product(ntuple(d -> (-r[d]):r[d], D)...)
+    return (
+        ntuple(d -> periodic_d[d] ? mod1(pos[d] + δ[d], space_size[d]) : (pos[d] + δ[d]), D)
+            for δ in offsets
+            if !all(iszero, δ) &&
+                all(d -> periodic_d[d] || (1 ≤ (pos[d] + δ[d]) ≤ space_size[d]), 1:D)
+    )
+end
+
 function nearby_positions(
         pos::GridPos{D}, space::AbstractGridSpace{D, true}, r = 1,
         get_indices_f = offsets_within_radius_no_0 # NOT PUBLIC API! For `ContinuousSpace`.

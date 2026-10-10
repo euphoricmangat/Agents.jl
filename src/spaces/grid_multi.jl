@@ -265,6 +265,22 @@ function bound_range(unbound, d, space::GridSpace{D, false}) where {D}
     return range(max(unbound.start, 1), stop = min(unbound.stop, spacesize(space)[d]))
 end
 
+# Periodic spaces may wrap; return explicit indices so `view` can still index (#1053).
+function bound_range(unbound, d, space::GridSpace{D, true}) where {D}
+    sz = spacesize(space)[d]
+    return [mod1(i, sz) for i in unbound]
+end
+
+# Mixed periodicity per dimension (`P` is an `NTuple{D,Bool}`).
+function bound_range(unbound, d, space::GridSpace{D, P}) where {D, P}
+    if P[d]
+        sz = spacesize(space)[d]
+        return [mod1(i, sz) for i in unbound]
+    else
+        return range(max(unbound.start, 1), stop = min(unbound.stop, spacesize(space)[d]))
+    end
+end
+
 #######################################################################################
 # %% Further discrete space functions
 #######################################################################################
