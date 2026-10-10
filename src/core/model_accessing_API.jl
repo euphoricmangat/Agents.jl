@@ -1,22 +1,18 @@
-const DictABM = Union{
-    StandardABM{S, A, <:AbstractDict{<:Integer, A}} where {S, A},
-    EventQueueABM{S, A, <:AbstractDict{<:Integer, A}} where {S, A},
-    ReinforcementLearningABM{S, A, <:AbstractDict{<:Integer, A}} where {S, A},
-}
-const VecABM = Union{
-    StandardABM{S, A, <:AbstractVector{A}} where {S, A},
-    EventQueueABM{S, A, <:AbstractVector{A}} where {S, A},
-    ReinforcementLearningABM{S, A, <:AbstractVector{A}} where {S, A},
-}
-const StructVecABM = Union{
-    StandardABM{S, A, <:StructVector{A}} where {S, A},
-    EventQueueABM{S, A, <:StructVector{A}} where {S, A},
-    ReinforcementLearningABM{S, A, <:StructVector{A}} where {S, A},
-}
+# Container-type dispatch helpers.
+# Prefer `agent_container(model)` over hardcoding concrete ABM types
+# (StandardABM / EventQueueABM / …), so custom `AgentBasedModel`s with Dict/Vector
+# containers get the same `nextid` / `maxid` behavior. See #1218.
+agent_container_type(model::ABM) = typeof(agent_container(model))
 
-nextid(model::DictABM) = getfield(model, :maxid)[] + 1
-nextid(model::Union{VecABM, StructVecABM}) = nagents(model) + 1
-hasid(model::Union{VecABM, StructVecABM}, id::Int) = id ≤ nagents(model)
+nextid(model::ABM) = nextid(model, agent_container(model))
+nextid(model::ABM, ::AbstractDict) = getfield(model, :maxid)[] + 1
+nextid(model::ABM, ::AbstractVector) = nagents(model) + 1
+nextid(model::ABM, _) = notimplemented(model)
+
+hasid(model::ABM, id::Int) = hasid(model, id, agent_container(model))
+hasid(model::ABM, id::Int, ::AbstractDict) = haskey(agent_container(model), id)
+hasid(model::ABM, id::Int, ::AbstractVector) = id ≤ nagents(model)
+hasid(model::ABM, id::Int, _) = haskey(agent_container(model), id)
 
 function add_agent_to_container!(agent::AbstractAgent, container::AbstractDict)
     return if haskey(container, getid(agent))
@@ -33,15 +29,19 @@ end
 
 function add_agent_to_container!(agent::AbstractAgent, model::ABM)
     add_agent_to_container!(agent, agent_container(model))
-    # Update maxid for DictABM
-    if model isa DictABM
-        maxid = getfield(model, :maxid)
-        if maxid[] < getid(agent)
-            maxid[] = getid(agent)
-        end
+    update_maxid_after_add!(model, agent, agent_container(model))
+    return
+end
+
+function update_maxid_after_add!(model::ABM, agent, ::AbstractDict)
+    maxid = getfield(model, :maxid)
+    if maxid[] < getid(agent)
+        maxid[] = getid(agent)
     end
     return
 end
+update_maxid_after_add!(::ABM, agent, ::AbstractVector) = nothing
+update_maxid_after_add!(::ABM, agent, _) = nothing
 
 # This is extended for event based models
 extra_actions_after_add!(agent, model::StandardABM) = nothing
@@ -53,19 +53,25 @@ function extra_actions_after_add!(agent, model::EventQueueABM{S, A, <:StructVect
 end
 extra_actions_after_add!(agent, model::ReinforcementLearningABM) = nothing
 
-function remove_agent_from_container!(agent::AbstractAgent, model::DictABM)
+function remove_agent_from_container!(agent::AbstractAgent, model::ABM)
+    return remove_agent_from_container!(agent, model, agent_container(model))
+end
+function remove_agent_from_container!(agent::AbstractAgent, model::ABM, ::AbstractDict)
     delete!(agent_container(model), getid(agent))
     return
 end
-function remove_agent_from_container!(agent::AbstractAgent, model::Union{VecABM, StructVecABM})
-    error("Cannot remove agents in a `StandardABM` with a vector container.")
+function remove_agent_from_container!(agent::AbstractAgent, model::ABM, ::AbstractVector)
+    error("Cannot remove agents in a model with a vector container.")
 end
+remove_agent_from_container!(agent::AbstractAgent, model::ABM, _) = notimplemented(model)
 
 # Internal utility for retrieving agents by id from a container
 retrieve_agent(container::StructVector, id::Int, ::Type{A}) where {A} = AgentWrapperSoA{A}(container, id)
 retrieve_agent(container, id::Int, ::Type) = container[id]
 
-random_id(model::DictABM) = rand(abmrng(model), agent_container(model)).first
-random_agent(model::DictABM) = rand(abmrng(model), agent_container(model)).second
+# Dict containers: sampling a Dict yields a pair; vector/other use `allids`.
+random_id(model::ABM) = random_id(model, agent_container(model))
+random_id(model::ABM, ::AbstractDict) = rand(abmrng(model), agent_container(model)).first
+random_id(model::ABM, _) = rand(abmrng(model), allids(model))
 
 getid(agent) = agent.id
