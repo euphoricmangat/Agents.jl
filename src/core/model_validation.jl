@@ -28,7 +28,18 @@ function agent_validator(
     end
 end
 
-# Note: This function needs to be updated every time a new space is defined!
+"""
+    position_type(space) → T
+
+Return the expected Julia type (or type union) of agent `pos` fields for `space`.
+Custom spaces should extend this method so agent validation stays extensible (#743).
+"""
+position_type(::Nothing) = Nothing
+position_type(::GraphSpace) = Integer
+position_type(::AbstractGridSpace{D}) where {D} = NTuple{D, Integer}
+position_type(::ContinuousSpace{D, P, T}) where {D, P, T} = Union{SVector{D, T}, NTuple{D, T}}
+position_type(::OpenStreetMapSpace) = Tuple{Int, Int, Float64}
+
 """
     do_checks(agent, space)
 Helper function for `agent_validator`.
@@ -45,14 +56,9 @@ function do_checks(::Type{A}, space::S, warn::Bool) where {A <: AbstractAgent, S
     return if space !== nothing
         (any(isequal(:pos), fieldnames(A)) && fieldnames(A)[2] == :pos) ||
             throw(ArgumentError("Second field of agent type must be `pos` when using a space."))
-        # Check `pos` field in A has the correct type
         pos_type = fieldtype(A, :pos)
-        space_type = typeof(space)
-        if space_type <: GraphSpace && !(pos_type <: Integer)
-            throw(ArgumentError("`pos` field in agent type must be of type `Int` when using GraphSpace."))
-        elseif space_type <: GridSpace && !(pos_type <: NTuple{D, Integer} where {D})
-            throw(ArgumentError("`pos` field in agent type must be of type `NTuple{Int}` when using GridSpace."))
-        elseif space_type <: ContinuousSpace
+        expected = position_type(space)
+        if space isa ContinuousSpace
             if pos_type <: NTuple{D, <:AbstractFloat} where {D}
                 warn && @warn "Using `NTuple` for the `pos` and `vel` fields of agent types in ContinuousSpace is deprecated. Use `SVector` instead." maxlog = 1
             elseif !(pos_type <: SVector{D, <:AbstractFloat} where {D} || (!isconcretetype(A) && pos_type <: SVector{D} where {D}))
@@ -68,11 +74,12 @@ function do_checks(::Type{A}, space::S, warn::Bool) where {A <: AbstractAgent, S
             end
             if eltype(space) != eltype(pos_type)
                 # extra condition for backward compatibility (#855)
-                # we don't want to throw an error if ContinuousAgent{D} is used with a Float64 space
                 if isnothing(match(r"ContinuousAgent{\d}", string(A))) || eltype(space) != Float64
                     throw(ArgumentError("`pos` field in agent type must be of the same type of the `extent` field in ContinuousSpace."))
                 end
             end
+        elseif !(pos_type <: expected)
+            throw(ArgumentError("`pos` field in agent type must be of type `$expected` when using $(nameof(typeof(space)))."))
         end
     end
 end
