@@ -30,9 +30,11 @@ function CommonSolve.step!(model::AgentBasedModel, args...)
 end
 
 # Generic functions that are used in the stepping of all types of models
-# this one is a type dispatch for whether the model is "unremovable" or not
-agent_not_removed(id, model::DictABM) = hasid(model, id)
-agent_not_removed(::Int, ::VecABM) = true
+# Dispatch on agent container: Dict models may remove agents; vector containers do not.
+agent_not_removed(id, model::ABM) = agent_not_removed(id, model, agent_container(model))
+agent_not_removed(id, model::ABM, ::AbstractDict) = hasid(model, id)
+agent_not_removed(::Int, ::ABM, ::AbstractVector) = true
+agent_not_removed(id, model::ABM, _) = hasid(model, id)
 # this one just checks until when we should step in a `while` loop
 until(t1, t0, n::Real, ::ABM) = t1 < t0 + n
 until(t1, t0, f, model::ABM) = !f(model, t1 - t0)

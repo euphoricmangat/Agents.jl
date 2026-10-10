@@ -211,21 +211,25 @@ agent_container(model::ABM) = getfield(model, :agents)
     nextid(model::ABM) → id
 
 Return a valid `id` for creating a new agent with it.
+Default implementations dispatch on the agent container type
+(see `model_accessing_API.jl`).
 """
-nextid(model::ABM) = notimplemented(model)
+function nextid end
 
 """
     add_agent_to_container!(agent, model)
 Add the agent to the model's internal container, if the addition is valid
 given the agent's ID and those already in the model. Otherwise error.
+Default implementations dispatch on the agent container type.
 """
-add_agent_to_container!(agent, model) = add_agent_to_container!(agent, agent_container(model))
+function add_agent_to_container! end
 
 """
     remove_agent_from_container!(agent, model)
 Remove the agent from the model's internal container.
+Default implementations dispatch on the agent container type.
 """
-remove_agent_from_container!(agent, model) = notimplemented(model)
+function remove_agent_from_container! end
 
 function Base.setindex!(m::ABM, args...; kwargs...)
     error("`setindex!` or `model[id] = agent` are invalid. Use `add_agent!` instead.")
