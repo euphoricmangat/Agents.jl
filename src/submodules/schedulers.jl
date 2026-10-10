@@ -45,22 +45,18 @@ module Schedulers
     ####################################
 
     function get_ids!(ids::Vector{Int}, model::ABM)
-        return get_ids!(ids, model, Agents.agent_container(model))
-    end
-
-    function get_ids!(ids::Vector{Int}, model::ABM, ::AbstractVector)
-        n_sched = length(ids)
-        nagents(model) == n_sched && return nothing
-        resize!(ids, nagents(model))
-        return ids[(n_sched + 1):end] = allids(model)[(n_sched + 1):end]
-    end
-
-    function get_ids!(ids::Vector{Int}, model::ABM, _)
         resize!(ids, nagents(model))
         for (i, id) in enumerate(allids(model))
             ids[i] = id
         end
         return
+    end
+
+    function get_ids!(ids::Vector{Int}, model::Agents.VecABM)
+        n_sched = length(ids)
+        nagents(model) == n_sched && return nothing
+        resize!(ids, nagents(model))
+        return ids[(n_sched + 1):end] = allids(model)[(n_sched + 1):end]
     end
 
     """
@@ -83,13 +79,11 @@ module Schedulers
     ByID() = ByID(Int[])
 
     function (sched::ByID)(model::ABM)
-        # Vector containers already store agents in ID order.
-        if Agents.agent_container(model) isa AbstractVector
-            return allids(model)
-        end
         get_ids!(sched.ids, model)
         return sort!(sched.ids)
     end
+
+    (sched::ByID)(model::Agents.VecABM) = allids(model)
 
     """
         Schedulers.Randomly()

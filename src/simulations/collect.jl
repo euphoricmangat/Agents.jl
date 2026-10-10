@@ -373,10 +373,10 @@ function init_agent_dataframe(model::ABM, properties::AbstractArray)
     end
 
     types = Vector{Vector}(undef, std_headers + length(properties))
-    if discretimeabm(model)
-        types[1] = Int[]
-    else
+    if model isa EventQueueABM
         types[1] = Float64[]
+    else
+        types[1] = Int[]
     end
     types[2] = Int[]
 
@@ -401,10 +401,10 @@ function init_agent_dataframe(model::ABM, properties::Vector{<:Tuple})
     utypes = union_types(A)
 
     headers[1] = "time"
-    if discretimeabm(model)
-        types[1] = Int[]
-    else
+    if model isa EventQueueABM
         types[1] = Float64[]
+    else
+        types[1] = Int[]
     end
 
     if length(utypes) > 1
@@ -428,10 +428,10 @@ function init_model_dataframe(model::ABM, properties::Vector)
     end
 
     types = Vector{Vector}(undef, 1 + length(properties))
-    if discretimeabm(model)
-        types[1] = Int[]
-    else
+    if model isa EventQueueABM
         types[1] = Float64[]
+    else
+        types[1] = Int[]
     end
     for (i, k) in enumerate(properties)
         types[i + 1] = if typeof(k) <: Symbol

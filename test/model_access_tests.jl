@@ -1,4 +1,4 @@
-using Agents, Test, Random
+using Agents, Test
 
 @testset "Model Access" begin
     @testset "Accessing model" begin
@@ -216,41 +216,5 @@ end
         wrapped_agent = model[1]
         @test wrapped_agent.id == agent.id
         @test typeof(wrapped_agent) != typeof(agent)
-    end
-end
-
-# Custom ABM with Dict/Vector containers must get maxid / nextid via container dispatch (#1218)
-@testset "Custom ABM container dispatch (#1218)" begin
-    @agent struct Ticker1218(NoSpaceAgent) end
-
-    struct MinimalABM1218{A, C <: Union{AbstractDict{Int, A}, AbstractVector{A}}, R <: AbstractRNG} <: AgentBasedModel{Nothing}
-        agents::C
-        rng::R
-        maxid::Base.RefValue{Int}
-        time::Base.RefValue{Int}
-    end
-
-    function MinimalABM1218(::Type{A}; container::Type = Dict) where {A <: AbstractAgent}
-        agents = container == Dict ? Dict{Int, A}() : Vector{A}()
-        return MinimalABM1218{A, typeof(agents), typeof(Random.default_rng())}(
-            agents, Random.default_rng(), Ref(0), Ref(0)
-        )
-    end
-
-    Agents.agenttype(::MinimalABM1218{A}) where {A} = A
-    Agents.discretimeabm(::MinimalABM1218) = true
-    Agents.extra_actions_after_add!(agent, model::MinimalABM1218) = nothing
-    Agents.step!(model::MinimalABM1218, t::Real) = model
-
-    for container in (Dict, Vector)
-        model = MinimalABM1218(Ticker1218; container)
-        a1 = add_agent!(Ticker1218, model)
-        a2 = add_agent!(Ticker1218, model)
-        @test a1.id == 1
-        @test a2.id == 2
-        @test nagents(model) == 2
-        if container == Dict
-            @test getfield(model, :maxid)[] == 2
-        end
     end
 end
