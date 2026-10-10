@@ -32,6 +32,7 @@ pages = [
     "performance_tips.md",
     "comparison.md",
     "devdocs.md",
+    "Compiling applications" => "compilation.md",
 ]
 
 # %%
