@@ -11,6 +11,11 @@
 # * maintain a minimum distance from other birds to avoid collision
 # * fly towards the average position of neighbors
 # * fly in the average direction of neighbors
+#
+# Besides the truly continuous space, this example also shows
+# [`get_spatial_property`](@ref): a height map over the same extent biases birds
+# toward lower ground via the local gradient, which integrates cleanly with
+# [`move_agent!`](@ref) and velocity updates.
 
 # ## Defining the core structures
 
@@ -42,6 +47,8 @@ end
 
 # The function `initialize_model` generates birds and returns
 # a model object using default values.
+# A discrete `heightmap` is stored in model properties; birds feel a force
+# proportional to its spatial gradient (preferring valleys over peaks).
 function initialize_model(;
         n_birds = 100,
         speed = 1.0,
@@ -50,13 +57,26 @@ function initialize_model(;
         separate_factor = 0.25,
         match_factor = 0.04,
         visual_distance = 5.0,
+        height_factor = 0.15,
         extent = (100, 100),
         seed = 42,
     )
     space2d = ContinuousSpace(extent; spacing = visual_distance / 1.5)
     rng = Random.MersenneTwister(seed)
 
-    model = StandardABM(Bird, space2d; rng, agent_step!, container = Vector, scheduler = Schedulers.Randomly())
+    ## Smooth hills over the continuous extent (sampled on a coarse grid).
+    nx, ny = 50, 50
+    heightmap = [
+        sin(2π * (i - 1) / (nx - 1)) * cos(2π * (j - 1) / (ny - 1))
+        for i in 1:nx, j in 1:ny
+    ]
+    properties = (; heightmap, height_factor)
+
+    model = StandardABM(
+        Bird, space2d;
+        rng, agent_step!, container = Vector,
+        scheduler = Schedulers.Randomly(), properties
+    )
     for _ in 1:n_birds
         vel = rand(abmrng(model), SVector{2}) * 2 .- 1
         add_agent!(
@@ -75,7 +95,8 @@ end
 
 # ## Defining the agent_step!
 # `agent_step!` is the primary function called for each step and computes velocity
-# according to the three rules defined above.
+# according to the three flocking rules, then adds a small force from the height
+# field so birds prefer lower terrain.
 function agent_step!(bird, model)
     ## Obtain the ids of neighbors within the bird's visual distance
     neighbor_agents = nearby_agents(bird, model, bird.visual_distance)
@@ -100,8 +121,17 @@ function agent_step!(bird, model)
     cohere *= bird.cohere_factor
     separate *= bird.separate_factor
     match *= bird.match_factor
+
+    ## Height-map gradient: finite differences via get_spatial_property
+    ε = 0.5
+    h0 = get_spatial_property(bird.pos, model.heightmap, model)
+    hx = get_spatial_property(bird.pos .+ SVector(ε, 0.0), model.heightmap, model)
+    hy = get_spatial_property(bird.pos .+ SVector(0.0, ε), model.heightmap, model)
+    ## Prefer low ground → move against the gradient
+    height_force = -model.height_factor * SVector(hx - h0, hy - h0) / ε
+
     ## Compute velocity based on rules defined above
-    bird.vel += (cohere + separate + match) / max(N, 1)
+    bird.vel += (cohere + separate + match) / max(N, 1) + height_force
     bird.vel /= norm(bird.vel)
     ## Move bird according to new velocity and speed
     return move_agent!(bird, model, bird.speed)
@@ -129,15 +159,21 @@ end
 # predefined polygon. `translate_polygon` is also available.
 # We now give `bird_marker` to `abmplot`, and notice how
 # the `agent_size` keyword is meaningless when using polygons as markers.
+# The height map is shown underneath the birds with `heatarray`.
 
 model = initialize_model()
-figure, = abmplot(model; agent_marker = bird_marker)
+figure, = abmplot(
+    model;
+    agent_marker = bird_marker,
+    heatarray = :heightmap,
+)
 figure
 
 # And let's also do a nice little video for it:
 abmvideo(
     "flocking.mp4", model;
     agent_marker = bird_marker,
+    heatarray = :heightmap,
     framerate = 20, frames = 150,
     title = "Flocking"
 )
