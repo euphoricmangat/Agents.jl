@@ -16,6 +16,11 @@ function Agents.abmplot(
     else
         either
     end
+    # Models with `nothing` space have dimensionality 0 — skip the blank space Axis (#935).
+    if space_axis_dimensionality(abmobs.model[]) == 0
+        abmplot_nospace!(fig, abmobs; add_controls, params, kwargs...)
+        return fig, nothing, abmobs
+    end
     ax = axistype(abmobs.model[])(fig[1, 1][1, 1]; axis...)
     abmplot!(ax, abmobs; add_controls, params, kwargs...)
     return fig, ax, abmobs
@@ -38,6 +43,20 @@ function axistype(model::ABM)
     D == 3 && return Axis3
     D == 2 && return Axis
     return @error """Invalid axis dimensionality $(D)."""
+end
+
+"""
+Plot controls for models without a spatial axis (`ABM` with `nothing` space).
+"""
+function abmplot_nospace!(
+        fig, abmobs::ABMObservable;
+        params = Dict(),
+        add_controls = !isempty(params),
+        dt = nothing,
+        kwargs..., # absorb unused agent/space plot kwargs
+    )
+    add_controls && add_interaction!(fig, abmobs, params, dt)
+    return abmobs
 end
 
 ###########################################################################################

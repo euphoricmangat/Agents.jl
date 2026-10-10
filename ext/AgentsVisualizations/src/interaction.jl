@@ -1,7 +1,12 @@
 function add_interaction!(ax, abmobs, params, dt)
-    stepclick, resetclick = add_controls!(ax.parent, abmobs, dt)
+    fig = ax isa Figure ? ax : ax.parent
+    return add_interaction!(fig, abmobs, params, dt)
+end
+
+function add_interaction!(fig::Figure, abmobs, params, dt)
+    stepclick, resetclick = add_controls!(fig, abmobs, dt)
     if !isempty(params)
-        add_param_sliders!(ax.parent, abmobs.model, params, resetclick)
+        add_param_sliders!(fig, abmobs.model, params, resetclick)
     end
     # link the two buttons to the abmobs
     on(stepclick) do click
