@@ -222,6 +222,12 @@ random_nearby_position
 
 ## A note on iteration
 
+!!! tip "Default scheduler and add_agent!"
+    The default scheduler [Schedulers.fastest](@ref) iterates agent IDs dynamically.
+    Adding or removing agents during `step!` can therefore change which agents
+    run in that same step. Use `Schedulers.ByID()` or `Schedulers.Randomly()`
+    if you need a stable activation list for the duration of the step.
+
 Most iteration in Agents.jl is **dynamic** and **lazy**, when possible, for performance reasons.
 
 **Dynamic** means that when iterating over the result of e.g. the [`ids_in_position`](@ref) function, the iterator will be affected by actions that would alter its contents.

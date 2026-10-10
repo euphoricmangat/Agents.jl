@@ -63,7 +63,17 @@ module Schedulers
         Schedulers.fastest
 
     A scheduler that orders all agent IDs in the fastest way possible,
-    which is the default order dictated by the agent container.
+    which is the default order dictated by the agent container
+    (typically the same order as [`allids`](@ref)).
+
+    !!! warning "Dynamic iteration"
+        `fastest` returns a **lazy, dynamic** iterator over current agent IDs.
+        If you [`add_agent!`](@ref) or [`remove_agent!`](@ref) during a model
+        step while using this scheduler, the set of IDs activated in that same
+        step can change mid-iteration (new agents may or may not run; removed
+        agents may be skipped). See also [A note on iteration](@ref) in the API
+        docs. Prefer [`Schedulers.ByID`](@ref) or [`Schedulers.Randomly`](@ref)
+        when same-step activation must be predictable.
     """
     fastest(model::ABM) = allids(model)
 
