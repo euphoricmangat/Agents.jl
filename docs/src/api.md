@@ -273,6 +273,49 @@ map_agent_groups
 index_mapped_groups
 ```
 
+### Example: pairwise payoffs (no space)
+
+`map_agent_groups` applies a function `f` to every ordered group of `order` agents.
+`f` receives an `NTuple{order, AgentType}`. An optional `filter` removes groups you do
+not want (for example self-pairs or duplicate unordered pairs).
+
+```@example higher_order
+using Agents
+using Random: Xoshiro
+
+@agent struct Player(NoSpaceAgent)
+    strategy::Symbol # :C or :D
+    score::Float64 = 0.0
+end
+
+function prisoner_dilemma_payoff((a, b))
+    # Classic PD: mutual C → 3, C vs D → 0 for C / 5 for D, mutual D → 1
+    if a.strategy === :C && b.strategy === :C
+        return 3.0, 3.0
+    elseif a.strategy === :C && b.strategy === :D
+        return 0.0, 5.0
+    elseif a.strategy === :D && b.strategy === :C
+        return 5.0, 0.0
+    else
+        return 1.0, 1.0
+    end
+end
+
+model = StandardABM(Player; rng = Xoshiro(42), warn_deprecation = false)
+for s in (:C, :C, :D, :D)
+    add_agent!(model; strategy = s)
+end
+
+# Ordered pairs with distinct agents only
+pairs = map_agent_groups(2, prisoner_dilemma_payoff, model, allunique)
+payoffs = collect(pairs)
+length(payoffs), payoffs[1]
+```
+
+For evolutionary / spatial games you typically accumulate these payoffs onto agents
+inside `model_step!`, then update strategies. Prefer a scheduler such as
+[`Schedulers.ByID`](@ref) when the grouping order should be stable.
+
 ## Data collection and analysis
 
 ```@docs
