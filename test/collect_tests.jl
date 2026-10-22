@@ -121,6 +121,31 @@ using Distributed
         @test df_empty[1, dataname(props_sum[1])] == 0.0
         @test length(df_empty[!, 1]) == length(df_empty[!, 2])
 
+        props_mean = [(:weight, mean)]
+        df_mean = init_agent_dataframe(model, props_mean)
+        collect_agent_data!(df_mean, empty_model, props_mean)
+        @test isnan(df_mean[1, dataname(props_mean[1])])
+        @test size(df_mean) == (1, 2)
+
+        props_len = [(:weight, length)]
+        df_len = init_agent_dataframe(model, props_len)
+        collect_agent_data!(df_len, empty_model, props_len)
+        @test df_len[1, dataname(props_len[1])] == 0
+
+        props_both = [(:weight, sum), (:weight, mean)]
+        df_both = init_agent_dataframe(model, props_both)
+        collect_agent_data!(df_both, empty_model, props_both)
+        @test size(df_both) == (1, 3)
+        @test df_both[1, dataname(props_both[1])] == 0.0
+        @test isnan(df_both[1, dataname(props_both[2])])
+        @test all(==(nrow(df_both)), (length(df_both[!, c]) for c in names(df_both)))
+
+        # Condition matching nobody must not MethodError (#1128 follow-up).
+        props_filt = [(:weight, sum, _ -> false)]
+        df_filt = init_agent_dataframe(model, props_filt)
+        collect_agent_data!(df_filt, model, props_filt)
+        @test df_filt[1, dataname(props_filt[1])] == 0.0
+
         # Add a function as a property
         props = [:weight, x_position]
         df = init_agent_dataframe(model, props)

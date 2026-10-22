@@ -727,6 +727,17 @@ iterator (which often throws and used to desync DataFrame columns; see #1128).
 """
 function _aggregate_value(
         col::AbstractVector{T},
+        property::Tuple{K, A, C},
+        agent_iter;
+        obtainer = identity,
+    ) where {T, K, A, C}
+    k, agg, condition = property
+    filtered = Iterators.filter(condition, agent_iter)
+    return _aggregate_value(col, (k, agg), filtered; obtainer)
+end
+
+function _aggregate_value(
+        col::AbstractVector{T},
         property::Tuple{K, A},
         agent_iter;
         obtainer = identity,
