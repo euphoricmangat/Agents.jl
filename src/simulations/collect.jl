@@ -739,18 +739,21 @@ function _aggregate_value(
     return agg(get_data(a, k, obtainer) for a in agents)::T
 end
 
-empty_aggregate_value(::Type{T}, ::typeof(sum)) where {T <: Number} = zero(T)
-empty_aggregate_value(::Type{T}, ::typeof(+)) where {T <: Number} = zero(T)
-empty_aggregate_value(::Type{T}, ::typeof(length)) where {T <: Integer} = zero(T)
-empty_aggregate_value(::Type{T}, ::typeof(length)) where {T} = zero(Int)
-function empty_aggregate_value(::Type{T}, ::Any) where {T <: AbstractFloat}
-    return T(NaN)
-end
+# One method on purpose: separate `sum`/`+` methods plus an `AbstractFloat` fallback
+# are ambiguous for `empty_aggregate_value(Float64, sum)` (issue #1128 MWE).
 function empty_aggregate_value(::Type{T}, agg) where {T}
-    throw(
-        ArgumentError(
-            "Cannot aggregate an empty agent set with $(agg) into column type $(T). " *
-                "Keep at least one agent, or use an aggregator with a defined empty value (e.g. `sum`).",
+    if (agg === sum || agg === (+)) && T <: Number
+        return zero(T)
+    elseif agg === length
+        return T <: Integer ? zero(T) : zero(Int)
+    elseif T <: AbstractFloat
+        return T(NaN)
+    else
+        throw(
+            ArgumentError(
+                "Cannot aggregate an empty agent set with $(agg) into column type $(T). " *
+                    "Keep at least one agent, or use an aggregator with a defined empty value (e.g. `sum`).",
+            )
         )
-    )
+    end
 end
